@@ -1,0 +1,222 @@
+<svg viewBox="0 0 1600 1180" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4b5563"/>
+    </marker>
+  </defs>
+
+  <style>
+    rect { stroke-width: 2; }
+    text { fill: #111827; }
+    .title { font-size: 13px; font-weight: 600; }
+    .sub { font-size: 10.5px; fill: #374151; }
+    .label { font-size: 11px; fill: #4b5563; font-style: italic; }
+    .sectionLabel { font-size: 13px; font-weight: 600; fill: #374151; font-style: italic; }
+    .dns   { fill: #dbeafe; stroke: #2563eb; }
+    .sec   { fill: #fee2e2; stroke: #dc2626; }
+    .app   { fill: #dcfce7; stroke: #16a34a; }
+    .data  { fill: #ccfbf1; stroke: #0d9488; }
+    .admin { fill: #ede9fe; stroke: #7c3aed; }
+    .stor  { fill: #fef3c7; stroke: #d97706; }
+    .bkp   { fill: #f1f5f9; stroke: #475569; }
+    .client{ fill: #f3f4f6; stroke: #374151; }
+    .conn  { stroke: #4b5563; stroke-width: 1.6; fill: none; marker-end: url(#arrow); }
+    .connDash { stroke: #6b7280; stroke-width: 1.6; fill: none; stroke-dasharray: 6,4; marker-end: url(#arrow); }
+    .boundary { fill: none; stroke: #9ca3af; stroke-width: 1.5; stroke-dasharray: 8,5; }
+  </style>
+
+  <text x="20" y="20" class="sub" font-size="12">Host: phubuntuserver — Celeron J1800, 8GB DDR3L, Ubuntu Server, bare-metal Docker</text>
+
+  <!-- Legend -->
+  <g>
+    <rect x="1250" y="12" width="330" height="130" rx="8" fill="#ffffff" stroke="#d1d5db"/>
+    <text x="1264" y="30" class="title">Legend</text>
+    <rect x="1264" y="38" width="14" height="14" class="dns" rx="3"/><text x="1284" y="49" class="sub">DNS / TLS ingress</text>
+    <rect x="1264" y="56" width="14" height="14" class="sec" rx="3"/><text x="1284" y="67" class="sub">Security (SSH / fail2ban)</text>
+    <rect x="1264" y="74" width="14" height="14" class="app" rx="3"/><text x="1284" y="85" class="sub">Application service</text>
+    <rect x="1264" y="92" width="14" height="14" class="data" rx="3"/><text x="1284" y="103" class="sub">Data store (DB / cache)</text>
+    <rect x="1420" y="38" width="14" height="14" class="admin" rx="3"/><text x="1440" y="49" class="sub">Admin / monitoring</text>
+    <rect x="1420" y="56" width="14" height="14" class="stor" rx="3"/><text x="1440" y="67" class="sub">Physical storage</text>
+    <rect x="1420" y="74" width="14" height="14" class="bkp" rx="3"/><text x="1440" y="85" class="sub">Backup (3-2-1)</text>
+  </g>
+
+  <!-- LAN Client -->
+  <rect x="710" y="15" width="200" height="55" rx="10" class="client"/>
+  <text x="810" y="38" text-anchor="middle" class="title">LAN Client</text>
+  <text x="810" y="54" text-anchor="middle" class="sub">browser / mobile app</text>
+
+  <!-- Pi-hole -->
+  <rect x="60" y="140" width="360" height="72" rx="10" class="dns"/>
+  <text x="240" y="162" text-anchor="middle" class="title">Pi-hole (native, not containerized)</text>
+  <text x="240" y="178" text-anchor="middle" class="sub">Local DNS records: *.lab &#8594; server LAN IP</text>
+  <text x="240" y="193" text-anchor="middle" class="sub">Ports 8081 / 4431 (freed from Caddy)</text>
+
+  <!-- Unbound / root DNS -->
+  <rect x="60" y="255" width="360" height="55" rx="10" fill="#eff6ff" stroke="#93c5fd"/>
+  <text x="240" y="277" text-anchor="middle" class="sub">Unbound (127.0.0.1#5335)</text>
+  <text x="240" y="293" text-anchor="middle" class="sub">recursive resolver &#8594; root DNS servers</text>
+
+  <!-- Caddy -->
+  <rect x="680" y="140" width="300" height="75" rx="10" class="dns"/>
+  <text x="830" y="163" text-anchor="middle" class="title">Caddy (:80 / :443)</text>
+  <text x="830" y="179" text-anchor="middle" class="sub">sole HTTPS ingress</text>
+  <text x="830" y="194" text-anchor="middle" class="sub">tls internal — self-signed CA</text>
+  <text x="830" y="209" text-anchor="middle" class="sub">only container publishing host ports</text>
+
+  <!-- SSH / fail2ban -->
+  <rect x="1180" y="140" width="360" height="75" rx="10" class="sec"/>
+  <text x="1360" y="163" text-anchor="middle" class="title">SSH :22</text>
+  <text x="1360" y="179" text-anchor="middle" class="sub">fail2ban — brute-force protection</text>
+  <text x="1360" y="194" text-anchor="middle" class="sub">scoped to SSH only, no other service</text>
+  <text x="1360" y="209" text-anchor="middle" class="sub">direct host access, not proxied by Caddy</text>
+
+  <!-- Host shell target -->
+  <rect x="1180" y="710" width="360" height="55" rx="10" class="client"/>
+  <text x="1360" y="732" text-anchor="middle" class="sub">Host OS — Ubuntu Server</text>
+  <text x="1360" y="748" text-anchor="middle" class="sub">direct shell access (systemd, docker CLI)</text>
+
+  <!-- Client -> Pi-hole / Caddy / SSH -->
+  <path d="M760,70 C500,100 300,110 240,140" class="conn"/>
+  <text x="440" y="118" class="label">DNS query</text>
+
+  <path d="M810,70 L830,140" class="conn"/>
+  <text x="836" y="105" class="label">HTTPS :443</text>
+
+  <path d="M870,70 C1050,100 1250,110 1330,140" class="conn"/>
+  <text x="1100" y="118" class="label">SSH :22</text>
+
+  <path d="M240,212 L240,255" class="conn"/>
+  <path d="M1360,215 L1360,710" class="connDash"/>
+
+  <!-- Docker bridge network boundary -->
+  <rect x="40" y="340" width="1520" height="350" rx="14" class="boundary"/>
+  <text x="60" y="362" class="sectionLabel">Docker bridge network: homelab</text>
+
+  <!-- Caddy -> network -->
+  <path d="M830,215 L830,340" class="conn"/>
+  <text x="845" y="270" class="label">reverse_proxy &#8594; service:port</text>
+  <text x="845" y="285" class="label">(TLS terminated at Caddy)</text>
+
+  <!-- Row 1: app services -->
+  <g>
+    <rect x="110" y="385" width="330" height="80" rx="10" class="app"/>
+    <text x="275" y="410" text-anchor="middle" class="title">Jellyfin</text>
+    <text x="275" y="426" text-anchor="middle" class="sub">media server</text>
+    <text x="275" y="440" text-anchor="middle" class="sub">VA-API transcode (i965, H.264 only)</text>
+    <text x="275" y="454" text-anchor="middle" class="sub">/dev/dri passthrough</text>
+  </g>
+  <g>
+    <rect x="460" y="385" width="330" height="80" rx="10" class="app"/>
+    <text x="625" y="410" text-anchor="middle" class="title">Navidrome</text>
+    <text x="625" y="426" text-anchor="middle" class="sub">music streaming</text>
+    <text x="625" y="440" text-anchor="middle" class="sub">Subsonic-compatible API</text>
+  </g>
+  <g>
+    <rect x="810" y="385" width="330" height="80" rx="10" class="app"/>
+    <text x="975" y="410" text-anchor="middle" class="title">CalibreWeb</text>
+    <text x="975" y="426" text-anchor="middle" class="sub">ebook library</text>
+  </g>
+  <g>
+    <rect x="1160" y="385" width="330" height="80" rx="10" class="app"/>
+    <text x="1325" y="410" text-anchor="middle" class="title">Immich Server</text>
+    <text x="1325" y="426" text-anchor="middle" class="sub">photo mgmt / mobile backup</text>
+    <text x="1325" y="440" text-anchor="middle" class="sub">no ML container (no AVX)</text>
+  </g>
+
+  <!-- Row 2: data stores + app -->
+  <g>
+    <rect x="110" y="485" width="330" height="80" rx="10" class="data"/>
+    <text x="275" y="510" text-anchor="middle" class="title">immich-postgres</text>
+    <text x="275" y="526" text-anchor="middle" class="sub">metadata / users / albums</text>
+    <text x="275" y="540" text-anchor="middle" class="sub">durable — mirrored, not yet versioned</text>
+  </g>
+  <g>
+    <rect x="460" y="485" width="330" height="80" rx="10" class="data"/>
+    <text x="625" y="510" text-anchor="middle" class="title">immich-redis</text>
+    <text x="625" y="526" text-anchor="middle" class="sub">job queue / cache</text>
+    <text x="625" y="540" text-anchor="middle" class="sub">ephemeral — no volume, no backup</text>
+  </g>
+  <g>
+    <rect x="810" y="485" width="330" height="80" rx="10" class="app"/>
+    <text x="975" y="510" text-anchor="middle" class="title">CryptPad</text>
+    <text x="975" y="526" text-anchor="middle" class="sub">encrypted collab suite</text>
+    <text x="975" y="540" text-anchor="middle" class="sub">zero-knowledge — no server recovery</text>
+  </g>
+  <g>
+    <rect x="1160" y="485" width="330" height="80" rx="10" class="app"/>
+    <text x="1325" y="510" text-anchor="middle" class="title">Filebrowser</text>
+    <text x="1325" y="526" text-anchor="middle" class="sub">web file manager</text>
+    <text x="1325" y="540" text-anchor="middle" class="sub">serves one shared folder</text>
+  </g>
+
+  <!-- Row 3: vault + admin/monitoring -->
+  <g>
+    <rect x="110" y="585" width="330" height="80" rx="10" class="app"/>
+    <text x="275" y="610" text-anchor="middle" class="title">Vaultwarden</text>
+    <text x="275" y="626" text-anchor="middle" class="sub">password manager</text>
+    <text x="275" y="640" text-anchor="middle" class="sub">Bitwarden-compatible, 2FA enabled</text>
+  </g>
+  <g>
+    <rect x="460" y="585" width="330" height="80" rx="10" class="admin"/>
+    <text x="625" y="610" text-anchor="middle" class="title">Portainer</text>
+    <text x="625" y="626" text-anchor="middle" class="sub">container mgmt UI</text>
+    <text x="625" y="640" text-anchor="middle" class="sub">basic_auth at Caddy layer</text>
+  </g>
+  <g>
+    <rect x="810" y="585" width="330" height="80" rx="10" class="admin"/>
+    <text x="975" y="610" text-anchor="middle" class="title">Beszel (hub)</text>
+    <text x="975" y="626" text-anchor="middle" class="sub">host/container/SMART metrics</text>
+  </g>
+  <g>
+    <rect x="1160" y="585" width="330" height="80" rx="10" class="admin"/>
+    <text x="1325" y="610" text-anchor="middle" class="title">Uptime Kuma</text>
+    <text x="1325" y="626" text-anchor="middle" class="sub">HTTP / DNS reachability</text>
+    <text x="1325" y="640" text-anchor="middle" class="sub">native CA trust configured</text>
+  </g>
+
+  <!-- Beszel-agent (host network, outside bridge) -->
+  <rect x="810" y="720" width="330" height="70" rx="10" class="admin" stroke-dasharray="5,4"/>
+  <text x="975" y="742" text-anchor="middle" class="title">beszel-agent</text>
+  <text x="975" y="757" text-anchor="middle" class="sub">network_mode: host — reads /dev/sda, /dev/sdb</text>
+  <text x="975" y="771" text-anchor="middle" class="sub">SYS_RAWIO for SATA S.M.A.R.T.</text>
+  <path d="M975,665 L975,720" class="connDash"/>
+  <text x="988" y="700" class="label">Unix socket only</text>
+  <text x="988" y="712" class="label">(zero TCP exposure)</text>
+
+  <!-- Network -> storage -->
+  <path d="M275,690 L275,800" class="conn"/>
+  <path d="M1150,690 L1150,800" class="conn"/>
+  <text x="60" y="812" class="label">docker volumes</text>
+
+  <!-- Storage -->
+  <rect x="110" y="820" width="600" height="70" rx="10" class="stor"/>
+  <text x="410" y="845" text-anchor="middle" class="title">sda — 128GB SSD</text>
+  <text x="410" y="862" text-anchor="middle" class="sub">boot, Docker root, Jellyfin transcode cache</text>
+
+  <rect x="810" y="820" width="680" height="70" rx="10" class="stor"/>
+  <text x="1150" y="842" text-anchor="middle" class="title">sdb — 500GB HDD (WD5000LPCX)</text>
+  <text x="1150" y="858" text-anchor="middle" class="sub">mounted /mnt/storage — all service volumes + restic repo</text>
+  <text x="1150" y="873" text-anchor="middle" class="sub" fill="#b45309">&#9888; Load_Cycle_Count at SMART failure threshold (watched, not critical)</text>
+
+  <!-- Backup section -->
+  <text x="60" y="925" class="sectionLabel">Backup — 3-2-1 rule</text>
+
+  <path d="M1150,890 L1150,935" class="conn"/>
+  <rect x="810" y="935" width="340" height="65" rx="10" class="bkp"/>
+  <text x="980" y="957" text-anchor="middle" class="title">restic repo (on sdb)</text>
+  <text x="980" y="972" text-anchor="middle" class="sub">Job 1: root fs (weekly, versioned)</text>
+  <text x="980" y="986" text-anchor="middle" class="sub">Job 2 (app data/DBs): deferred — Copy 2</text>
+
+  <path d="M900,1000 C750,1030 650,1035 610,1050" class="connDash"/>
+  <path d="M1060,1000 C1150,1030 1220,1035 1250,1050" class="connDash"/>
+
+  <rect x="410" y="1050" width="300" height="60" rx="10" class="bkp"/>
+  <text x="560" y="1072" text-anchor="middle" class="title">External 1TB HDD</text>
+  <text x="560" y="1088" text-anchor="middle" class="sub">local — 2nd copy, 2nd media — Copy 3a</text>
+
+  <rect x="1150" y="1050" width="340" height="60" rx="10" class="bkp"/>
+  <text x="1320" y="1072" text-anchor="middle" class="title">External 1TB HDD</text>
+  <text x="1320" y="1088" text-anchor="middle" class="sub">offsite — family member's house — Copy 3b</text>
+
+  <text x="60" y="1140" class="sub">Full write-up, rationale, and load-test findings: see README.md</text>
+</svg>

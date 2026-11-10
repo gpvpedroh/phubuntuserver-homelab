@@ -1,0 +1,95 @@
+{
+    admin off
+    log {
+        output file /var/log/caddy/access.log {
+            roll_size 20mb
+            roll_keep 5
+        }
+        format json
+    }
+}
+
+jellyfin.lab {
+    tls internal
+    log
+    reverse_proxy jellyfin:8096
+}
+
+navidrome.lab {
+    tls internal
+    log
+    reverse_proxy navidrome:4533
+}
+
+calibreweb.lab {
+    tls internal
+    log
+    reverse_proxy calibreweb:8083
+}
+
+immich.lab {
+    tls internal
+    log
+    reverse_proxy immich-server:2283
+}
+
+cryptpad.lab {
+    tls internal
+    log
+    reverse_proxy cryptpad:3000
+}
+
+cryptpad-sandbox.lab {
+    tls internal
+    log
+    reverse_proxy cryptpad:3000
+}
+
+filebrowser.lab {
+    tls internal
+    log
+    reverse_proxy filebrowser:80
+}
+
+vaultwarden.lab {
+    tls internal
+    log
+    reverse_proxy vaultwarden:80
+}
+
+portainer.lab {
+    tls internal
+    log
+    # Generate your own hash: docker run --rm caddy:2.9.1 caddy hash-password --plaintext '<your-password>'
+    # IMPORTANT: do not wrap the hash in single quotes — Caddyfile doesn't
+    # treat ' as a string delimiter, so it becomes a literal character
+    # prepended to the hash and crash-loops the container with
+    # "illegal base64 data at input byte 0". No quotes needed at all,
+    # since the hash contains no spaces.
+    basic_auth {
+        <ADMIN_USER> <BCRYPT_HASH>
+    }
+    reverse_proxy portainer:9443 {
+        transport http {
+            tls_insecure_skip_verify
+        }
+    }
+}
+
+pihole.lab {
+    tls internal
+    log
+    reverse_proxy host.docker.internal:8081
+}
+
+beszel.lab {
+    tls internal
+    log
+    reverse_proxy beszel:8090
+}
+
+uptime.lab {
+    tls internal
+    log
+    reverse_proxy uptime-kuma:3001
+}

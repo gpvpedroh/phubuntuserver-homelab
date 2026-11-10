@@ -1,0 +1,282 @@
+# phubuntuserver — homelab stack
+#
+# Hardware: Intel Celeron J1800 (Bay Trail-D, dual-core, no HT/AVX), 8GB
+# DDR3L-1600, iGPU Gen7 (VAAPI H.264 decode/encode only — no HEVC/VP9/AV1
+# hardware path). This ceiling is why Immich's ML container and PhotoPrism's
+# TensorFlow features are deliberately not deployed (see README).
+#
+# All secrets are injected via .env (gitignored) — see .env.example for the
+# required variable names. Nothing in this file should ever contain a
+# literal credential; if it does, it wasn't meant to be committed.
+#
+# Networking: every service sits on the `homelab` bridge network. Only
+# Caddy publishes host ports (80/443) — it is the sole HTTPS ingress point
+# and terminates TLS via an internal CA for all `*.lab` domains. No other
+# service maps a host port; Caddy reaches them by Docker service name.
+
+networks:
+  homelab:
+    driver: bridge
+
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:10.11.11
+    container_name: jellyfin
+    restart: unless-stopped
+    networks:
+      - homelab
+    volumes:
+      - /mnt/storage/jellyfin/config:/config
+      - /mnt/storage/jellyfin/media:/media
+    devices:
+      - /dev/dri:/dev/dri
+    environment:
+      # Bay Trail's iGPU has never supported the iHD driver Quick Sync (QSV)
+      # needs. Hardware transcode must go through VA-API + the legacy i965
+      # driver instead; QSV will hardcode driver=iHD and fail every time.
+      - LIBVA_DRIVER_NAME=i965
+    mem_limit: 1536m
+    cpus: 1.5
+
+  navidrome:
+    image: deluan/navidrome:0.53.3
+    container_name: navidrome
+    restart: unless-stopped
+    networks:
+      - homelab
+    environment:
+      ND_ADMIN_PASSWORD: ${NAVIDROME_ADMIN_PW}
+    volumes:
+      - /mnt/storage/navidrome/music:/music
+      - /mnt/storage/navidrome/data:/data
+    mem_limit: 512m
+    cpus: 0.5
+
+  calibreweb:
+    image: linuxserver/calibre-web:0.6.21
+    container_name: calibreweb
+    restart: unless-stopped
+    networks:
+      - homelab
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - PASSWORD=${CALIBREWEB_PW}
+    volumes:
+      - /mnt/storage/calibreweb/books:/books
+      - /mnt/storage/calibreweb/config:/config
+    mem_limit: 512m
+    cpus: 0.5
+
+  # --- Immich (photo management) ---
+  # No immich-machine-learning service is defined here. Immich's ML
+  # container (CLIP smart search, facial recognition) has documented
+  # failures on non-AVX CPUs, and the J1800 has no AVX. Running without it
+  # means EXIF/metadata-based search only — a deliberate, hardware-forced
+  # trade-off, not an oversight.
+  immich-postgres:
+    image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0
+    container_name: immich-postgres
+    restart: unless-stopped
+    networks:
+      - homelab
+    environment:
+      POSTGRES_USER: ${IMMICH_DB_USERNAME}
+      POSTGRES_PASSWORD: ${IMMICH_DB_PASSWORD}
+      POSTGRES_DB: ${IMMICH_DB_DATABASE_NAME}
+      POSTGRES_INITDB_ARGS: '--data-checksums'
+      DB_STORAGE_TYPE: 'HDD'
+    volumes:
+      - /mnt/storage/immich/pgdata:/var/lib/postgresql/data
+    mem_limit: 512m
+    cpus: 1.0
+
+  immich-redis:
+    image: docker.io/valkey/valkey:9
+    container_name: immich-redis
+    restart: unless-stopped
+    networks:
+      - homelab
+    mem_limit: 128m
+    cpus: 0.25
+
+  immich-server:
+    image: ghcr.io/immich-app/immich-server:release
+    container_name: immich-server
+    restart: unless-stopped
+    networks:
+      - homelab
+    environment:
+      DB_HOSTNAME: immich-postgres
+      DB_USERNAME: ${IMMICH_DB_USERNAME}
+      DB_PASSWORD: ${IMMICH_DB_PASSWORD}
+      DB_DATABASE_NAME: ${IMMICH_DB_DATABASE_NAME}
+      REDIS_HOSTNAME: immich-redis
+    volumes:
+      - /mnt/storage/immich/upload:/data
+    depends_on:
+      - immich-postgres
+      - immich-redis
+    mem_limit: 1024m
+    cpus: 1.0
+
+  cryptpad:
+    image: cryptpad/cryptpad:version-2026.5.0
+    container_name: cryptpad
+    restart: unless-stopped
+    networks:
+      - homelab
+    environment:
+      CPAD_MAIN_DOMAIN: https://cryptpad.lab
+      CPAD_SANDBOX_DOMAIN: https://cryptpad-sandbox.lab
+      CPAD_HTTP_PORT: 3000
+      CPAD_HTTP_ADDRESS: "0.0.0.0"
+      CPAD_CONF: /cryptpad/config/config.js
+    volumes:
+      - /mnt/storage/cryptpad/config:/cryptpad/config
+      - /mnt/storage/cryptpad/data:/cryptpad/data
+      - /mnt/storage/cryptpad/blob:/cryptpad/blob
+      - /mnt/storage/cryptpad/block:/cryptpad/block
+      - /mnt/storage/cryptpad/datastore:/cryptpad/datastore
+      - /mnt/storage/cryptpad/customize:/cryptpad/customize
+    mem_limit: 1024m
+    cpus: 1.0
+
+  filebrowser:
+    image: filebrowser/filebrowser:v2.63.18
+    container_name: filebrowser
+    restart: unless-stopped
+    networks:
+      - homelab
+    volumes:
+      - /mnt/storage/filebrowser/config:/config
+      - /mnt/storage/filebrowser/data:/database
+      - /mnt/storage/SharedContent:/srv
+    mem_limit: 256m
+    cpus: 0.5
+
+  vaultwarden:
+    image: vaultwarden/server:1.36.0
+    container_name: vaultwarden
+    restart: unless-stopped
+    networks:
+      - homelab
+    environment:
+      DOMAIN: https://vaultwarden.lab
+      SIGNUPS_ALLOWED: "false"
+      # Argon2id hash, not a plaintext token — generated via
+      # `docker exec -it vaultwarden ./vaultwarden hash`.
+      ADMIN_TOKEN: ${VAULTWARDEN_ADMIN_TOKEN}
+      WEBSOCKET_ENABLED: "true"
+    volumes:
+      - /mnt/storage/vaultwarden/data:/data
+    mem_limit: 256m
+    cpus: 0.5
+
+  caddy:
+    image: caddy:2.9.1
+    container_name: caddy
+    restart: unless-stopped
+    networks:
+      - homelab
+    ports:
+      - "80:80"
+      - "443:443"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - /mnt/storage/caddy/Caddyfile:/etc/caddy/Caddyfile
+      - /mnt/storage/caddy/data:/data
+      - /mnt/storage/caddy/config:/config
+      - /mnt/storage/caddy/logs:/var/log/caddy
+    mem_limit: 256m
+    cpus: 0.25
+
+  portainer:
+    image: portainer/portainer-ce:2.21.4
+    container_name: portainer
+    restart: unless-stopped
+    networks:
+      - homelab
+    volumes:
+      # Direct docker.sock mount — current known trade-off, see README.
+      # A docker-socket-proxy re-implementation is planned once Tailscale
+      # exposure goes live (changes Portainer's threat model).
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /mnt/storage/portainer_data:/data
+    mem_limit: 256m
+    cpus: 0.25
+
+  beszel:
+    # Pinned explicitly — avoids CVE-2026-27734 (Docker API traversal).
+    image: henrygd/beszel:0.18.4
+    container_name: beszel
+    restart: unless-stopped
+    networks:
+      - homelab
+    environment:
+      APP_URL: https://beszel.lab
+    volumes:
+      - /mnt/storage/beszel/beszel_data:/beszel_data
+      - /mnt/storage/beszel/beszel_socket:/beszel_socket
+    mem_limit: 128m
+    cpus: 0.25
+
+  beszel-agent:
+    # alpine variant — the base image doesn't bundle smartmontools at all,
+    # which silently breaks S.M.A.R.T. collection.
+    image: henrygd/beszel-agent:alpine
+    container_name: beszel-agent
+    restart: unless-stopped
+    network_mode: host
+    devices:
+      - /dev/sda:/dev/sda
+      - /dev/sdb:/dev/sdb
+    cap_add:
+      - SYS_RAWIO   # sufficient for SATA/AHCI S.M.A.R.T.; NVMe needs SYS_ADMIN instead
+    volumes:
+      - /mnt/storage/beszel/beszel_agent_data:/var/lib/beszel-agent
+      - /mnt/storage/beszel/beszel_socket:/beszel_socket
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      # Agent communicates exclusively over the Unix socket — register it
+      # in the Beszel Hub UI via the socket path, not TOKEN/KEY
+      # auto-registration (that path assumes TCP reachability, which
+      # doesn't exist here on network_mode: host).
+      #
+      # NOTE: the live source file this was regenerated from still had
+      # `HUB_URL: http://localhost:8090` set here — that's dead config
+      # from an early auto-registration attempt that never worked
+      # (deliberately omitted below; remove it on the live box too next
+      # time this file is touched there).
+      LISTEN: /beszel_socket/beszel.sock
+      TOKEN: ${BESZEL_AGENT_TOKEN}
+      KEY: ${BESZEL_AGENT_KEY}
+    mem_limit: 64m
+    cpus: 0.25
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:1.23.16
+    container_name: uptime-kuma
+    restart: unless-stopped
+    networks:
+      - homelab
+    volumes:
+      - /mnt/storage/uptime-kuma/data:/app/data
+      - /mnt/storage/caddy/data/caddy/pki/authorities/local/root.crt:/app/caddy-root.crt:ro
+    environment:
+      NODE_EXTRA_CA_CERTS: /app/caddy-root.crt
+    # Explicit DNS override pointed at the LAN Pi-hole instance so its
+    # built-in DNS monitor actually validates real local resolution.
+    # Replace <PIHOLE_LAN_IP> with your own Pi-hole/DNS server LAN IP —
+    # the live source file has the real RFC1918 address here, genericized
+    # for this public copy.
+    dns:
+      - <PIHOLE_LAN_IP>
+    mem_limit: 256m
+    cpus: 0.5
+
+# Note on resource budget: summed mem_limit across all services is ~7.1GB
+# against an 8GB host — deliberately tight, not an oversight. See README
+# for the load-testing work that validated this fits real single-user
+# usage patterns.
